@@ -1,11 +1,13 @@
 /**
- * @file serialLightRead.ino
+ * @file serialLightReadInverted.ino
  * @brief Verifies a GT36537 DDP device (ID 0x0106) on the I2C bus and prints
- *        its raw ADC0 reading and relative percentage over Serial.
+ *        its inverted ADC0 reading and relative percentage over Serial.
  *
- * The GT36537 is an LDR read through PA2 (ADC_IN2, 12 bits). The value is a
- * relative light measurement (0-4095), not lux: the direction of the reading
- * depends on which end of the divider the LDR is connected to.
+ * The GT36537 is an LDR read through PA2 (ADC_IN2, 12 bits). Depending on
+ * which end of the divider carries the LDR, the raw value can rise in
+ * darkness and fall in light. readInvertRaw()/readInvertPercentage() flip
+ * that scale (inverted = 4095 - raw) so the reported value rises with more
+ * light instead, matching the usual "more light = higher number" intuition.
  */
 
 #include <Arduino.h>
@@ -51,7 +53,7 @@ void setup() {
   }
 
   sensor.printInfo();
-  Serial.println("GT36537 ready: PA2 ADC0 reads the LDR divider");
+  Serial.println("GT36537 ready: PA2 ADC0 reads the LDR divider (inverted scale)");
 }
 
 void loop() {
@@ -61,17 +63,17 @@ void loop() {
   }
   lastRead = millis();
 
-  uint16_t raw = 0U;
-  if (sensor.readRaw(raw)) {
-    float percent = (raw * 100.0f) / 4095.0f;
+  uint16_t inverted = 0U;
+  if (sensor.readInvertRaw(inverted)) {
+    float percent = (inverted * 100.0f) / 4095.0f;
 #if defined(ARDUINO_ARCH_AVR)
     // AVR Serial has no printf(), and avr-libc printf lacks %f.
-    Serial.print("adc0=");
-    Serial.print(raw);
+    Serial.print("adc0_inverted=");
+    Serial.print(inverted);
     Serial.print(" percent=");
     Serial.println(percent, 1);
 #else
-    Serial.printf("adc0=%u percent=%.1f\n", raw, percent);
+    Serial.printf("adc0_inverted=%u percent=%.1f\n", inverted, percent);
 #endif
   } else {
     Serial.println("ERROR: light read failed");
