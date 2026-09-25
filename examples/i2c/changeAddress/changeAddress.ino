@@ -9,6 +9,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <DevLabDDP.h>
+#include <DevLab_I2C_Orchestrator.h>
 
 #if defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2350)
 TwoWire &i2cBus = Wire1;
@@ -23,7 +24,8 @@ constexpr int SCL_PIN = 7;
 #endif
 
 constexpr uint8_t FACTORY_ADDRESS = 0x26U;
-DevLabDDP::Master sensor(i2cBus, DevLabDDP::DEVICE_GT36537);
+DevLab_I2C_Orchestrator orchestrator(i2cBus);
+DevLabDDP::Master sensor(orchestrator, DevLabDDP::DEVICE_GT36537);
 String inputLine;
 
 bool parseAddress(const String &text, uint8_t &address) {

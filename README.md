@@ -17,8 +17,10 @@ Compatible with ESP32, RP2040/RP2350 and Arduino-compatible platforms.
 - DDP 1.0 master through the `DevLabDDP` dependency
 - Device identification (Device ID `0x0106`) before any read or write
 - 12-bit light reading (`0` to `4095`), updated by the firmware every 20 ms
+- Raw and inverted readings, each as a raw count or a `0-100%` percentage
 - I2C address scan and reassignment (`0x08` to `0x77`)
-- Ready-to-use examples for Serial output and the serial plotter
+- Bus recovery (`beginRecovered`) for a slave left mid-transaction
+- Ready-to-use examples for Serial output, the serial plotter, and address management
 - Supports custom I2C pins
 
 ---
@@ -54,34 +56,29 @@ Sketch -> Library Manager -> Search DevLab_GT36537...
 ```cpp
 #include <Arduino.h>
 #include <Wire.h>
-#include <DevLab_GT36537.h>
+#include <DevLab_GT365xx.h>
 
 #define SDA_PIN 6
 #define SCL_PIN 7
 
-constexpr uint8_t SENSOR_ADDRESS = 0x26;
+constexpr uint8_t SENSOR_ADDRESS = 0x26U;
 
-DevLabDDP::Master sensor(Wire, DevLabDDP::DEVICE_GT36537);
+DevLab_GT365xx sensor(Wire, SENSOR_ADDRESS);
 
 void setup() {
-
   Serial.begin(115200);
-  Wire.begin(SDA_PIN, SCL_PIN);
 
-  if (!sensor.matchesExpectedDevice(SENSOR_ADDRESS)) {
-
+  sensor.beginRecovered(SDA_PIN, SCL_PIN);
+  if (!sensor.busReady() || !sensor.isConnected()) {
     Serial.println("GT36537 initialization failed.");
-
     while (1);
   }
 }
 
 void loop() {
-
   uint16_t raw;
 
-  if (sensor.readAdc(SENSOR_ADDRESS, 0, raw)) {
-
+  if (sensor.readRaw(raw)) {
     Serial.print("ADC0: ");
     Serial.print(raw);
 
@@ -93,6 +90,8 @@ void loop() {
   delay(250);
 }
 ```
+
+`DevLab_GT365xx` owns its own `DevLab_I2C_Orchestrator` internally, so construct it from a `TwoWire` bus (as above) rather than wiring up the orchestrator by hand — passing a bus straight into `DevLabDDP::Master` does not compile, since that constructor takes the orchestrator by non-const reference.
 
 ---
 
@@ -114,6 +113,7 @@ void loop() {
 | ESP32 | Compatible |
 | ESP32-S3 | Compatible |
 | RP2040 / RP2350 | Compatible |
+| AVR (Uno, Nano, Mega, Leonardo) | Compatible (fixed I2C pins per board variant) |
 
 ---
 
@@ -147,12 +147,16 @@ The factory I2C address is `0x26` and can be changed with the
 ```text
 DevLab_GT36537/
 ├── examples/
-│   ├── i2c/changeAddress/
+│   ├── i2c/
+│   │   ├── changeAddress/
+│   │   └── i2c_scanner/
 │   └── light/
 │       ├── serialLightRead/
+│       ├── serialLightReadInverted/
 │       └── serialLightRawPlot/
 ├── src/
-│   └── DevLab_GT36537.h
+│   ├── DevLab_GT365xx.h
+│   └── DevLab_GT365xx.cpp
 ├── library.properties
 ├── README.md
 └── LICENSE
